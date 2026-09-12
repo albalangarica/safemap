@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#172a46">
+  <title>Granada SafeMap · Demo ampliada</title>
+  <meta name="description" content="Mapa de prueba de Granada SafeMap con datos ficticios.">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <style>
+    :root {
+      --navy:#172a46; --cream:#f7f4ee; --white:#fff; --text:#172033;
+      --muted:#667085; --accent:#e4c766; --grey:#9aa1aa;
+      --high:#5d9b76; --mid:#d2a84a; --low:#b86666;
+      --shadow:0 12px 32px rgba(23,42,70,.16);
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;height:100%;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--text);background:var(--cream)}
+    body{display:flex;flex-direction:column;min-height:100dvh}
+    header{background:var(--navy);color:white;padding:max(14px,env(safe-area-inset-top)) 16px 14px;z-index:1000;box-shadow:0 2px 14px rgba(0,0,0,.12)}
+    .brand{max-width:1100px;margin:auto;display:flex;align-items:center;gap:11px}
+    .logo{width:40px;height:40px;border-radius:12px;background:var(--accent);color:var(--navy);display:grid;place-items:center;font-weight:900}
+    h1{font-size:1.05rem;margin:0;letter-spacing:-.02em}
+    .sub{font-size:.75rem;color:rgba(255,255,255,.7);margin-top:3px}
+    main{position:relative;flex:1;min-height:0}
+    #map{position:absolute;inset:0}
+    .panel{position:absolute;z-index:700;top:14px;left:14px;right:14px;max-width:430px;background:rgba(255,255,255,.96);backdrop-filter:blur(10px);border-radius:17px;padding:14px;box-shadow:var(--shadow)}
+    .demo{display:inline-block;background:#f2ecd6;color:#6f5b16;border-radius:999px;padding:6px 9px;font-size:.68rem;font-weight:900;text-transform:uppercase;letter-spacing:.05em}
+    .panel h2{font-size:1.25rem;margin:10px 0 5px;letter-spacing:-.03em}
+    .panel p{font-size:.82rem;color:var(--muted);line-height:1.4;margin:0 0 11px}
+    .filters{display:flex;gap:7px;overflow:auto;padding-bottom:2px}
+    .filter{white-space:nowrap;border:0;border-radius:999px;padding:8px 11px;background:#eef1f5;color:var(--navy);font-weight:800;cursor:pointer}
+    .filter.active{background:var(--navy);color:white}
+    .legend{display:flex;gap:10px;flex-wrap:wrap;margin-top:11px;font-size:.72rem;color:var(--muted)}
+    .legend span{display:inline-flex;align-items:center;gap:5px}
+    .dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+    .count{margin-top:8px;font-size:.73rem;color:var(--muted)}
+    .leaflet-popup-content-wrapper{border-radius:15px;box-shadow:var(--shadow)}
+    .leaflet-popup-content{margin:14px;min-width:205px}
+    .popup-type{font-size:.7rem;font-weight:900;text-transform:uppercase;color:#7a6a2c;margin-bottom:4px}
+    .popup-name{font-size:1rem;font-weight:900;margin-bottom:4px}
+    .popup-meta{font-size:.78rem;color:#667085;line-height:1.4}
+    .score{margin-top:10px;font-size:1.45rem;font-weight:900;color:var(--navy)}
+    .score small{font-size:.72rem;color:var(--muted);font-weight:700}
+    .no-data{margin-top:10px;padding:9px;border-radius:9px;background:#eceff2;color:#555f6b;font-size:.74rem;font-weight:800}
+    .fake-warning{position:absolute;z-index:700;left:14px;bottom:calc(14px + env(safe-area-inset-bottom));max-width:355px;background:rgba(23,42,70,.94);color:white;padding:9px 11px;border-radius:11px;font-size:.7rem;line-height:1.35;box-shadow:var(--shadow)}
+    @media(min-width:700px){.panel{top:22px;left:22px;padding:17px}.fake-warning{left:22px;bottom:22px}}
+  </style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo">GS</div>
+    <div>
+      <h1>Granada SafeMap</h1>
+      <div class="sub">Seguridad e inclusión percibidas en el ocio nocturno</div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div id="map"></div>
+  <section class="panel">
+    <span class="demo">Demo · todo inventado</span>
+    <h2>Explora Granada</h2>
+    <p>Los puntos grises son locales de los que todavía no tenemos información SafeMap. Permanecen visibles para que puedan recibir valoraciones.</p>
+
+    <div class="filters">
+      <button class="filter active" data-filter="Todos">Todos</button>
+      <button class="filter" data-filter="Con datos demo">Con datos</button>
+      <button class="filter" data-filter="Sin datos">Sin datos</button>
+      <button class="filter" data-filter="Bar">Bares</button>
+      <button class="filter" data-filter="Pub">Pubs</button>
+      <button class="filter" data-filter="Discoteca">Discotecas</button>
+    </div>
+
+    <div class="legend">
+      <span><i class="dot" style="background:var(--high)"></i>4,0–5,0</span>
+      <span><i class="dot" style="background:var(--mid)"></i>3,0–3,9</span>
+      <span><i class="dot" style="background:var(--low)"></i>1,0–2,9</span>
+      <span><i class="dot" style="background:var(--grey)"></i>Sin datos</span>
+    </div>
+
+    <div class="count" id="count"></div>
+  </section>
+
+  <div class="fake-warning"><strong>Prueba técnica.</strong> Los 30 locales, sus direcciones, valoraciones e índices son ficticios.</div>
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+const locales = [{"place_id": "DEMO_001", "local_codigo": "Z01_L001", "nombre": "La Brújula", "direccion": "Calle Ejemplo 12", "zona_codigo": "Z01", "zona_nombre": "Centro", "tipo": "Bar", "latitud": 37.1776, "longitud": -3.5987, "activo": true, "estado_datos": "Con datos demo", "n_valoraciones": 18, "indice_safemap": 4.3}, {"place_id": "DEMO_002", "local_codigo": "Z01_L002", "nombre": "Nébula Club", "direccion": "Plaza Ejemplo 4", "zona_codigo": "Z01", "zona_nombre": "Centro", "tipo": "Discoteca", "latitud": 37.1765, "longitud": -3.6002, "activo": true, "estado_datos": "Con datos demo", "n_valoraciones": 11, "indice_safemap": 3.7}, {"place_id": "DEMO_003", "local_codigo": "Z02_L001", "nombre": "El Patio Azul", "direccion": "Calle Ficticia 8", "zona_codigo": "Z02", "zona_nombre": "Realejo", "tipo": "Pub", "latitud": 37.1734, "longitud": -3.5954, "activo": true, "estado_datos": "Con datos demo", "n_valoraciones": 9, "indice_safemap": 4.1}, {"place_id": "DEMO_004", "local_codigo": "Z02_L002", "nombre": "Candela", "direccion": "Cuesta Inventada 3", "zona_codigo": "Z02", "zona_nombre": "Realejo", "tipo": "Bar", "latitud": 37.1719, "longitud": -3.5938, "activo": true, "estado_datos": "Con datos demo", "n_valoraciones": 14, "indice_safemap": 3.2}, {"place_id": "DEMO_005", "local_codigo": "Z03_L001", "nombre": "Sala Prisma", "direccion": "Avenida Demo 21", "zona_codigo": "Z03", "zona_nombre": "Camino de Ronda", "tipo": "Discoteca", "latitud": 37.1697, "longitud": -3.6105, "activo": true, "estado_datos": "Con datos demo", "n_valoraciones": 27, "indice_safemap": 2.8}, {"place_id": "DEMO_006", "local_codigo": "Z03_L002", "nombre": "La Esquina 22", "direccion": "Calle Modelo 22", "zona_codigo": "Z03", "zona_nombre": "Camino de Ronda", "tipo": "Pub", "latitud": 37.1742, "longitud": -3.6117, "activo": true, "estado_datos": "Con datos demo", "n_valoraciones": 8, "indice_safemap": 3.9}, {"place_id": "DEMO_007", "local_codigo": "Z04_L001", "nombre": "Mirador 37", "direccion": "Calle Prueba 7", "zona_codigo": "Z04", "zona_nombre": "Albaicín", "tipo": "Bar", "latitud": 37.1818, "longitud": -3.5914, "activo": true, "estado_datos": "Con datos demo", "n_valoraciones": 6, "indice_safemap": 4.5}, {"place_id": "DEMO_008", "local_codigo": "Z04_L002", "nombre": "Luna Baja", "direccion": "Placeta Simulada 2", "zona_codigo": "Z04", "zona_nombre": "Albaicín", "tipo": "Pub", "latitud": 37.183, "longitud": -3.5888, "activo": true, "estado_datos": "Con datos demo", "n_valoraciones": 13, "indice_safemap": 3.4}, {"place_id": "DEMO_009", "local_codigo": "Z05_L001", "nombre": "Campus Café", "direccion": "Avenida Universitaria 5", "zona_codigo": "Z05", "zona_nombre": "Fuentenueva", "tipo": "Bar", "latitud": 37.182, "longitud": -3.6062, "activo": true, "estado_datos": "Con datos demo", "n_valoraciones": 21, "indice_safemap": 4.0}, {"place_id": "DEMO_010", "local_codigo": "Z05_L002", "nombre": "Órbita", "direccion": "Calle Ensayo 14", "zona_codigo": "Z05", "zona_nombre": "Fuentenueva", "tipo": "Pub", "latitud": 37.1797, "longitud": -3.605, "activo": true, "estado_datos": "Con datos demo", "n_valoraciones": 7, "indice_safemap": 2.9}, {"place_id": "DEMO_011", "local_codigo": "Z06_L001", "nombre": "Sur 180", "direccion": "Paseo de Muestra 18", "zona_codigo": "Z06", "zona_nombre": "Zaidín", "tipo": "Discoteca", "latitud": 37.1588, "longitud": -3.5989, "activo": true, "estado_datos": "Con datos demo", "n_valoraciones": 16, "indice_safemap": 3.5}, {"place_id": "DEMO_012", "local_codigo": "Z06_L002", "nombre": "La Terraza Cero", "direccion": "Calle Plantilla 1", "zona_codigo": "Z06", "zona_nombre": "Zaidín", "tipo": "Bar", "latitud": 37.1612, "longitud": -3.6018, "activo": true, "estado_datos": "Con datos demo", "n_valoraciones": 10, "indice_safemap": 4.2}, {"place_id": "DEMO_013", "local_codigo": "Z01_L003", "nombre": "Mármol", "direccion": "Calle Boceto 9", "zona_codigo": "Z01", "zona_nombre": "Centro", "tipo": "Pub", "latitud": 37.1792, "longitud": -3.6011, "activo": true, "estado_datos": "Sin datos", "n_valoraciones": 0, "indice_safemap": null}, {"place_id": "DEMO_014", "local_codigo": "Z01_L004", "nombre": "Andén 5", "direccion": "Calle Maqueta 5", "zona_codigo": "Z01", "zona_nombre": "Centro", "tipo": "Bar", "latitud": 37.1753, "longitud": -3.5974, "activo": true, "estado_datos": "Sin datos", "n_valoraciones": 0, "indice_safemap": null}, {"place_id": "DEMO_015", "local_codigo": "Z02_L003", "nombre": "El Candil Verde", "direccion": "Calle Supuesta 19", "zona_codigo": "Z02", "zona_nombre": "Realejo", "tipo": "Bar", "latitud": 37.1725, "longitud": -3.5899, "activo": true, "estado_datos": "Sin datos", "n_valoraciones": 0, "indice_safemap": null}, {"place_id": "DEMO_016", "local_codigo": "Z02_L004", "nombre": "Pliegue", "direccion": "Calle Imaginaria 6", "zona_codigo": "Z02", "zona_nombre": "Realejo", "tipo": "Pub", "latitud": 37.1708, "longitud": -3.5962, "activo": true, "estado_datos": "Sin datos", "n_valoraciones": 0, "indice_safemap": null}, {"place_id": "DEMO_017", "local_codigo": "Z03_L003", "nombre": "Neón 33", "direccion": "Avenida Ficticia 33", "zona_codigo": "Z03", "zona_nombre": "Camino de Ronda", "tipo": "Discoteca", "latitud": 37.1681, "longitud": -3.607, "activo": true, "estado_datos": "Sin datos", "n_valoraciones": 0, "indice_safemap": null}, {"place_id": "DEMO_018", "local_codigo": "Z03_L004", "nombre": "Marea Baja", "direccion": "Calle Ensayo 31", "zona_codigo": "Z03", "zona_nombre": "Camino de Ronda", "tipo": "Pub", "latitud": 37.172, "longitud": -3.615, "activo": true, "estado_datos": "Sin datos", "n_valoraciones": 0, "indice_safemap": null}, {"place_id": "DEMO_019", "local_codigo": "Z04_L003", "nombre": "Azotea Norte", "direccion": "Placeta Demo 11", "zona_codigo": "Z04", "zona_nombre": "Albaicín", "tipo": "Bar", "latitud": 37.185, "longitud": -3.5925, "activo": true, "estado_datos": "Sin datos", "n_valoraciones": 0, "indice_safemap": null}, {"place_id": "DEMO_020", "local_codigo": "Z04_L004", "nombre": "Cueva 14", "direccion": "Calle Inventada 14", "zona_codigo": "Z04", "zona_nombre": "Albaicín", "tipo": "Pub", "latitud": 37.1842, "longitud": -3.5865, "activo": true, "estado_datos": "Sin datos", "n_valoraciones": 0, "indice_safemap": null}, {"place_id": "DEMO_021", "local_codigo": "Z05_L003", "nombre": "Punto y Aparte", "direccion": "Calle Universitaria 16", "zona_codigo": "Z05", "zona_nombre": "Fuentenueva", "tipo": "Bar", "latitud": 37.184, "longitud": -3.608, "activo": true, "estado_datos": "Sin datos", "n_valoraciones": 0, "indice_safemap": null}, {"place_id": "DEMO_022", "local_codigo": "Z05_L004", "nombre": "Satélite", "direccion": "Avenida Prueba 2", "zona_codigo": "Z05", "zona_nombre": "Fuentenueva", "tipo": "Pub", "latitud": 37.1803, "longitud": -3.6098, "activo": true, "estado_datos": "Sin datos", "n_valoraciones": 0, "indice_safemap": null}, {"place_id": "DEMO_023", "local_codigo": "Z06_L003", "nombre": "Sala Meridiano", "direccion": "Calle Modelo Sur 20", "zona_codigo": "Z06", "zona_nombre": "Zaidín", "tipo": "Discoteca", "latitud": 37.1555, "longitud": -3.601, "activo": true, "estado_datos": "Sin datos", "n_valoraciones": 0, "indice_safemap": null}, {"place_id": "DEMO_024", "local_codigo": "Z06_L004", "nombre": "Patio Sur", "direccion": "Calle Falsa 17", "zona_codigo": "Z06", "zona_nombre": "Zaidín", "tipo": "Bar", "latitud": 37.163, "longitud": -3.6041, "activo": true, "estado_datos": "Sin datos", "n_valoraciones": 0, "indice_safemap": null}, {"place_id": "DEMO_025", "local_codigo": "Z07_L001", "nombre": "La Vitrina", "direccion": "Calle Prototipo 10", "zona_codigo": "Z07", "zona_nombre": "Pedro Antonio", "tipo": "Pub", "latitud": 37.176, "longitud": -3.6068, "activo": true, "estado_datos": "Sin datos", "n_valoraciones": 0, "indice_safemap": null}, {"place_id": "DEMO_026", "local_codigo": "Z07_L002", "nombre": "Bucle", "direccion": "Calle Provisional 7", "zona_codigo": "Z07", "zona_nombre": "Pedro Antonio", "tipo": "Bar", "latitud": 37.175, "longitud": -3.6088, "activo": true, "estado_datos": "Sin datos", "n_valoraciones": 0, "indice_safemap": null}, {"place_id": "DEMO_027", "local_codigo": "Z07_L003", "nombre": "Sala Umbral", "direccion": "Calle Simulada 18", "zona_codigo": "Z07", "zona_nombre": "Pedro Antonio", "tipo": "Discoteca", "latitud": 37.174, "longitud": -3.6057, "activo": true, "estado_datos": "Sin datos", "n_valoraciones": 0, "indice_safemap": null}, {"place_id": "DEMO_028", "local_codigo": "Z08_L001", "nombre": "La Cámara", "direccion": "Calle Muestra 12", "zona_codigo": "Z08", "zona_nombre": "Plaza de Toros", "tipo": "Bar", "latitud": 37.1881, "longitud": -3.6088, "activo": true, "estado_datos": "Sin datos", "n_valoraciones": 0, "indice_safemap": null}, {"place_id": "DEMO_029", "local_codigo": "Z08_L002", "nombre": "Vértice", "direccion": "Avenida Hipotética 3", "zona_codigo": "Z08", "zona_nombre": "Plaza de Toros", "tipo": "Pub", "latitud": 37.1867, "longitud": -3.6113, "activo": true, "estado_datos": "Sin datos", "n_valoraciones": 0, "indice_safemap": null}, {"place_id": "DEMO_030", "local_codigo": "Z08_L003", "nombre": "Norte 21", "direccion": "Calle Ensayo Norte 21", "zona_codigo": "Z08", "zona_nombre": "Plaza de Toros", "tipo": "Bar", "latitud": 37.19, "longitud": -3.6055, "activo": true, "estado_datos": "Sin datos", "n_valoraciones": 0, "indice_safemap": null}];
+
+const map = L.map("map", {zoomControl:false}).setView([37.176, -3.601], 13);
+L.control.zoom({position:"bottomright"}).addTo(map);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  maxZoom:19,
+  attribution:"&copy; OpenStreetMap contributors"
+}).addTo(map);
+
+const markerLayer = L.layerGroup().addTo(map);
+
+function colorLocal(local) {
+  if (local.estado_datos === "Sin datos" || local.indice_safemap == null) return "#9aa1aa";
+  if (local.indice_safemap >= 4) return "#5d9b76";
+  if (local.indice_safemap >= 3) return "#d2a84a";
+  return "#b86666";
+}
+
+function popupHTML(local) {
+  if (local.estado_datos === "Sin datos" || local.indice_safemap == null) {
+    return `
+      <div class="popup-type">${local.tipo}</div>
+      <div class="popup-name">${local.nombre}</div>
+      <div class="popup-meta">${local.direccion}<br>${local.zona_nombre} · ${local.zona_codigo}</div>
+      <div class="no-data">Sin datos suficientes para calcular el Índice SafeMap.</div>
+    `;
+  }
+  return `
+    <div class="popup-type">${local.tipo}</div>
+    <div class="popup-name">${local.nombre}</div>
+    <div class="popup-meta">${local.direccion}<br>${local.zona_nombre} · ${local.zona_codigo}</div>
+    <div class="score">${local.indice_safemap.toFixed(1)} <small>/ 5 · ${local.n_valoraciones} valoraciones demo</small></div>
+  `;
+}
+
+function matches(local, filtro) {
+  if (filtro === "Todos") return true;
+  if (filtro === "Con datos demo" || filtro === "Sin datos") return local.estado_datos === filtro;
+  return local.tipo === filtro;
+}
+
+function render(filtro="Todos") {
+  markerLayer.clearLayers();
+  const visibles = locales.filter(l => l.activo && matches(l, filtro));
+
+  visibles.forEach(local => {
+    const c = colorLocal(local);
+    L.circleMarker([local.latitud, local.longitud], {
+      radius:8,
+      weight:2.5,
+      color: local.estado_datos === "Sin datos" ? "#747b84" : "#ffffff",
+      fillColor:c,
+      fillOpacity:1
+    }).bindPopup(popupHTML(local)).addTo(markerLayer);
+  });
+
+  const sinDatos = visibles.filter(l => l.estado_datos === "Sin datos").length;
+  document.getElementById("count").textContent =
+    `${visibles.length} locales visibles · ${sinDatos} sin datos`;
+}
+
+document.querySelectorAll(".filter").forEach(button => {
+  button.addEventListener("click", () => {
+    document.querySelectorAll(".filter").forEach(b => b.classList.remove("active"));
+    button.classList.add("active");
+    render(button.dataset.filter);
+  });
+});
+
+render();
+</script>
+</body>
+</html>
